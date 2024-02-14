@@ -57,7 +57,7 @@ class thinkup_builder_imagetheme extends WP_Widget {
 		$default_entries = array( 
 			'title'           => '', 
 			'uploader_button' => '', 
-			'attachment_id'   => '', 
+			'attachment_id'   => 0, 
 			'imageurl'        => '', 
 			'size'            => '',
 			'align'           => '',
@@ -70,7 +70,9 @@ class thinkup_builder_imagetheme extends WP_Widget {
 			'delay'           => '', 	
 		);
 		$instance = wp_parse_args( (array) $instance, $default_entries );
-
+		
+		# Fix attachment_id coming in as a string from the database via wp_parse_args here. 
+		$instance['attachment_id'] = intval($instance['attachment_id']);
 		$align          = $instance['align'];
 		$overlay_enable = $instance['overlay_enable'];
 		$overlay_icon   = $instance['overlay_icon'];
@@ -671,7 +673,7 @@ class thinkup_builder_imagetheme extends WP_Widget {
 		$instance['delay']          = $new_instance['delay'];
 
 		// Reverse compatibility with $image, now called $attachement_id
-		$instance['attachment_id'] = abs( $new_instance['attachment_id'] );
+		$instance['attachment_id'] = abs(intval( $new_instance['attachment_id'] ));
 		$instance['imageurl'] = $new_instance['imageurl']; // deprecated
 
 		$instance['aspect_ratio'] = $this->get_image_aspect_ratio( $instance );
@@ -702,15 +704,18 @@ class thinkup_builder_imagetheme extends WP_Widget {
 			$animate                 = $instance['animate'];
 			$delay                   = $instance['delay'];
 
-			if ( !defined( 'IMAGE_WIDGET_COMPATIBILITY_TEST' ) ) {
-				$instance['attachment_id'] = ( $instance['attachment_id'] > 0 ) ? $instance['attachment_id'] : $instance['image'];
-				$instance['attachment_id'] = apply_filters( 'image_widget_image_attachment_id', abs( $instance['attachment_id'] ), $args, $instance );
-				$instance['size']          = apply_filters( 'image_widget_image_size', esc_attr( $instance['size'] ), $args, $instance );
-			}
 			$instance['imageurl'] = apply_filters( 'image_widget_image_url', esc_url( $instance['imageurl'] ), $args, $instance );
-
+			
 			// No longer using extracted vars. This is here for backwards compatibility.
-			extract( $instance );
+			// Except I found one and fixed it, but there may be more. 
+			extract( $instance );			
+			
+			if (!defined( 'IMAGE_WIDGET_COMPATIBILITY_TEST' ) ) {
+				$instance['attachment_id'] = intval($instance['attachment_id']); // str -> int
+				$instance['attachment_id'] = ( $instance['attachment_id'] > 0 ) ? $instance['attachment_id'] : intval($instance['image']);
+				$instance['attachment_id'] = apply_filters( 'image_widget_image_attachment_id', abs($instance['attachment_id'] ), $args, $instance );
+				$instance['size']          = apply_filters( 'image_widget_image_size', esc_attr( $instance['size'] ), $args, $instance );
+			} 
 			
 			// Assign animation variables
 			if ( ! empty( $animate ) and $animate !== 'none' ) {
@@ -718,8 +723,8 @@ class thinkup_builder_imagetheme extends WP_Widget {
 				$animate_end   = '</div><div class="clearboth"></div>';
 			}
 			
-			$image_img = wp_get_attachment_image_src( $attachment_id, $size, true );
-			$image_img_full = wp_get_attachment_image_src( $attachment_id, 'full', true );
+			$image_img = wp_get_attachment_image_src( $instance['attachment_id'], $size, true );
+			$image_img_full = wp_get_attachment_image_src($instance['attachment_id'], 'full', true );
 
 			if ( $align == 'left' ) {
 				$align = ' style="text-align: left;"';
